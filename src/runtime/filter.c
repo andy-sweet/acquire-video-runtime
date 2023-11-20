@@ -4,6 +4,7 @@
 #include "logger.h"
 #include "vfslice.h"
 #include "throttler.h"
+#include "device/hal/filter.h"
 
 #include <string.h>
 
@@ -131,7 +132,7 @@ process_data(struct video_filter_s* self,
                 if (assert_consistent_shape(*accumulator, in)) {
                     CHECK(accumulate(*accumulator, in));
                     ++*frame_count;
-                    if (*frame_count >= self->filter_window_frames) {
+                    if (*frame_count >= self->settings.window_size) {
                         normalize(*accumulator,
                                   *frame_count ? 1.0f / (*frame_count) : 1.0f);
                         *frame_count = 0;
@@ -222,10 +223,19 @@ video_filter_destroy(struct video_filter_s* self)
 }
 
 enum DeviceStatusCode
+video_filter_get(
+    const struct video_filter_s* self,
+    struct DeviceIdentifier* identifier,
+    struct FilterProperties* settings) {
+    *identifier = self->identifier;
+    return self->filter ? filter_get(self->filter, settings) : Device_Ok;
+}
+
+enum DeviceStatusCode
 video_filter_configure(struct video_filter_s* self,
-                       uint32_t frame_average_count)
+                       struct FilterProperties* settings)
 {
-    self->filter_window_frames = frame_average_count;
+    filter_set(self->filter, settings);
     return Device_Ok;
 }
 

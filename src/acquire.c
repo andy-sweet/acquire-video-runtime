@@ -273,6 +273,7 @@ configure_video_stream(struct video_s* const video,
 {
     struct aq_properties_camera_s* const pcamera = &pvideo->camera;
     struct aq_properties_storage_s* const pstorage = &pvideo->storage;
+    struct aq_properties_filter_s* const pfilter = &pvideo->filter;
 
     int is_ok = 1;
     is_ok &= (video_source_configure(&video->source,
@@ -280,15 +281,15 @@ configure_video_stream(struct video_s* const video,
                                      &pcamera->identifier,
                                      &pcamera->settings,
                                      pvideo->max_frame_count,
-                                     pvideo->frame_average_count > 1) == Device_Ok);
+                                     pfilter->settings.window_size > 1) == Device_Ok);
     is_ok &= (video_filter_configure(&video->filter,
-                                     pvideo->frame_average_count) == Device_Ok);
+                                     &pfilter->settings) == Device_Ok);
     is_ok &=
       (video_sink_configure(&video->sink,
                             device_manager,
                             &pstorage->identifier,
                             &pstorage->settings,
-                            (float)pvideo->frame_average_count) == Device_Ok);
+                            pstorage->write_delay_ms) == Device_Ok);
 
     EXPECT(is_ok, "Failed to configure video stream.");
 
@@ -365,13 +366,16 @@ acquire_get_configuration(const struct AcquireRuntime* self_,
         struct aq_properties_video_s* const pvideo = settings->video + istream;
         struct aq_properties_camera_s* const pcamera = &pvideo->camera;
         struct aq_properties_storage_s* const pstorage = &pvideo->storage;
-
-        pvideo->frame_average_count = video->filter.filter_window_frames;
+        struct aq_properties_filter_s* const pfilter = &pvideo->filter;
 
         is_ok &= (video_source_get(&video->source,
                                    &pcamera->identifier,
                                    &pcamera->settings,
                                    &pvideo->max_frame_count) == Device_Ok);
+
+        is_ok &= (video_filter_get(&video->filter,
+                                   &pfilter->identifier,
+                                   &pfilter->settings) == Device_Ok);
 
         is_ok &= (video_sink_get(&video->sink,
                                  &pstorage->identifier,
@@ -399,19 +403,24 @@ acquire_get_configuration_metadata(const struct AcquireRuntime* self_,
         if (self->video[i].sink.storage)
             storage_get_meta(self->video[i].sink.storage,
                              &metadata->video[i].storage);
+        // TODO: filter metadata
+        //if (self->video[i].filter.filter)
+        //    filter_get_meta(self->video[i].filter.filter,
+        //                    &metadata->video[i].filter)
         metadata->video[i].max_frame_count = (struct Property){
             .writable = 1,
             .low = 0.0f,
             .high = -1.0f, // NOTE: (nclack) Not sure what's right here.
             .type = PropertyType_FixedPrecision
         };
-        metadata->video[i].frame_average_count =
-          (struct Property){ .writable = 1,
-                             .low = 0.0f,
-                             .high =
-                               -1.0f, // TODO: (nclack) Compute this. Depends on
-                                      // the queue and frame size
-                             .type = PropertyType_FixedPrecision };
+        // TODO: filter metadata
+        //metadata->video[i].frame_average_count =
+        //  (struct Property){ .writable = 1,
+        //                     .low = 0.0f,
+        //                     .high =
+        //                       -1.0f, // TODO: (nclack) Compute this. Depends on
+        //                              // the queue and frame size
+        //                     .type = PropertyType_FixedPrecision };
     }
 
     return AcquireStatus_Ok;

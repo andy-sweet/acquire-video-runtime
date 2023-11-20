@@ -4,6 +4,7 @@
 #include "device/props/device.h"
 #include "device/props/camera.h"
 #include "device/props/storage.h"
+#include "device/props/filter.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -36,8 +37,12 @@ extern "C"
                 struct StorageProperties settings;
                 float write_delay_ms;
             } storage;
+            struct aq_properties_filter_s
+            {
+                struct DeviceIdentifier identifier;
+                struct FilterProperties settings;
+            } filter;
             uint64_t max_frame_count;
-            uint32_t frame_average_count;
         } video[2];
     };
 
@@ -49,7 +54,6 @@ extern "C"
             struct StoragePropertyMetadata storage;
             //  description
             struct Property max_frame_count;
-            struct Property frame_average_count;
         } video[2];
     };
 

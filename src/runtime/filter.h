@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include "channel.h"
 #include "device/props/device.h"
+#include "device/props/filter.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -13,7 +14,9 @@ extern "C"
     /// Context for video filter threads
     struct video_filter_s
     {
-        uint32_t filter_window_frames;
+        struct Filter* filter;
+        struct FilterProperties settings;
+        struct DeviceIdentifier identifier;
         struct channel in;
         struct channel* out;
         struct channel_reader reader;
@@ -39,8 +42,13 @@ extern "C"
 
     void video_filter_destroy(struct video_filter_s* self);
 
+    enum DeviceStatusCode video_filter_get(
+      const struct video_filter_s* self,
+      struct DeviceIdentifier* identifier,
+      struct FilterProperties* settings);
+
     enum DeviceStatusCode video_filter_configure(struct video_filter_s* self,
-                                                 uint32_t frame_average_count);
+                                                 struct FilterProperties* settings);
 
     enum DeviceStatusCode video_filter_start(struct video_filter_s* self);
 

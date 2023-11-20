@@ -75,6 +75,11 @@ main()
                                 DeviceKind_Camera,
                                 SIZED("simulated.*random.*") - 1,
                                 &props.video[0].camera.identifier));
+    // TODO: support this type of selection.
+    //DEVOK(device_manager_select(dm,
+    //                            DeviceKind_Filter,
+    //                            SIZED("frame_average") - 1,
+    //                            &props.video[0].filter.identifier));
     DEVOK(device_manager_select(dm,
                                 DeviceKind_Storage,
                                 SIZED("Trash") - 1,
@@ -82,7 +87,7 @@ main()
 
     // Configure a frame averaging filter to compute the average of
     // every 2 frames.
-    props.video[0].frame_average_count = 2;
+    props.video[0].filter.settings.window_size = 2;
 
     OK(acquire_configure(runtime, &props));
 
@@ -123,7 +128,7 @@ main()
     OK(acquire_start(runtime));
     {
         uint64_t nframes = 0;
-        const uint64_t expected_nframes = props.video[0].max_frame_count / props.video[0].frame_average_count;
+        const uint64_t expected_nframes = props.video[0].max_frame_count / props.video[0].filter.settings.window_size;
         LOG("Expecting %d frames", expected_nframes);
 
         // Each pixel is drawn from a uniform distribution in [0, 255].
