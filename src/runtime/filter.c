@@ -103,8 +103,7 @@ normalize(struct VideoFrame* acc, float inverse_norm)
 
 static int
 process_data(struct video_filter_s* self,
-             struct VideoFrame** accumulator,
-             uint64_t* frame_count)
+             struct VideoFrame** accumulator)
 {
     struct VideoFrame* in = 0;
     {
@@ -125,23 +124,16 @@ process_data(struct video_filter_s* self,
                         .shape = shape,
                         .timestamps = in->timestamps,
                     };
-                    CHECK(accumulate(*accumulator, in));
-                    *frame_count = 1;
+                    filter_accumulate(self->filter, *accumulator, in);
                 }
             } else {
                 if (assert_consistent_shape(*accumulator, in)) {
-                    CHECK(accumulate(*accumulator, in));
-                    ++*frame_count;
-                    if (*frame_count >= self->settings.window_size) {
-                        normalize(*accumulator,
-                                  *frame_count ? 1.0f / (*frame_count) : 1.0f);
-                        *frame_count = 0;
+                    if (filter_accumulate(self->filter, *accumulator, in) != DeviceState_Running) {
                         *accumulator = 0;
                         channel_write_unmap(self->out);
                     }
                 } else {
                     LOG("FILTER: emitting early -- shape inconsistent");
-                    *frame_count = 0;
                     *accumulator = 0;
                     channel_abort_write(self->out);
                 }
@@ -151,10 +143,9 @@ process_data(struct video_filter_s* self,
     };
 
     if (self->sig_accumulator_reset) {
-        LOG("FILTER: accumulator reset (%d)", *frame_count);
+        LOG("FILTER: accumulator reset");
         if (*accumulator) {
             *accumulator = 0;
-            *frame_count = 0;
             channel_abort_write(self->out);
         }
         self->sig_accumulator_reset = 0;
@@ -164,7 +155,6 @@ process_data(struct video_filter_s* self,
 Error:
     channel_read_unmap(&self->in, &self->reader, 0);
     // reset state
-    *frame_count = 0;
     *accumulator = 0;
     channel_write_unmap(self->out);
     return 0;
@@ -174,17 +164,16 @@ static int
 video_filter_thread(struct video_filter_s* self)
 {
     int ecode = 0;
-    uint64_t frame_count = 0;
     struct VideoFrame* accumulator = 0;
     LOG("[stream %d] PROCESSING: Entering frame processing thread",
         self->stream_id);
     struct throttler throttler = throttler_init(10e-3f);
     while (!self->is_stopping) {
-        CHECK(process_data(self, &accumulator, &frame_count));
+        CHECK(process_data(self, &accumulator));
         throttler_wait(&throttler);
     }
     LOG("[stream: %d] PROCESSING: Flush", self->stream_id);
-    CHECK(process_data(self, &accumulator, &frame_count));
+    CHECK(process_data(self, &accumulator));
 Finalize:
     if (accumulator)
         channel_write_unmap(self->out);

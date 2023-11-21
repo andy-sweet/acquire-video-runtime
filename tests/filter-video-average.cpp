@@ -75,11 +75,10 @@ main()
                                 DeviceKind_Camera,
                                 SIZED("simulated.*random.*") - 1,
                                 &props.video[0].camera.identifier));
-    // TODO: support this type of selection.
-    //DEVOK(device_manager_select(dm,
-    //                            DeviceKind_Filter,
-    //                            SIZED("frame_average") - 1,
-    //                            &props.video[0].filter.identifier));
+    DEVOK(device_manager_select(dm,
+                                DeviceKind_Filter,
+                                SIZED("frame_average") - 1,
+                                &props.video[0].filter.identifier));
     DEVOK(device_manager_select(dm,
                                 DeviceKind_Storage,
                                 SIZED("Trash") - 1,
